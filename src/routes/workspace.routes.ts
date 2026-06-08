@@ -7,35 +7,25 @@ import {
 } from "../middleware/auth.middleware";
 
 const router = Router();
-
-router.post(
+router.get(
   "/",
   authMiddleware,
   async (req: AuthRequest, res) => {
     try {
-      const { name } = req.body;
-
-      const workspace = await prisma.workspace.create({
-        data: {
-          name,
-        },
-      });
-
-      await prisma.workspaceMember.create({
-        data: {
+      const workspaces = await prisma.workspaceMember.findMany({
+        where: {
           userId: req.user!.userId,
-          workspaceId: workspace.id,
-          role: "owner",
+        },
+        include: {
+          workspace: true,
         },
       });
 
-      return res.status(201).json({
+      return res.json({
         success: true,
-        workspace,
+        workspaces,
       });
     } catch (error) {
-      console.error(error);
-
       return res.status(500).json({
         success: false,
         error: String(error),
@@ -43,5 +33,4 @@ router.post(
     }
   }
 );
-
 export default router;
