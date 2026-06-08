@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+model User {
+  id          String @id @default(uuid())
+  email       String @unique
+  name        String?
+  password    String
+  createdAt   DateTime @default(now())
+
+  workspaces  WorkspaceMember[]
+}
+
+model Workspace {
+  id          String @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
+
+  members     WorkspaceMember[]
+  agents      Agent[]
+  contacts    Contact[]
+}
+
+model WorkspaceMember {
+  id          String @id @default(uuid())
+
+  userId      String
+  workspaceId String
+  role        String @default("member")
+
+  user        User @relation(fields:[userId], references:[id])
+  workspace   Workspace @relation(fields:[workspaceId], references:[id])
+
+  @@unique([userId, workspaceId])
+}
+
+model Agent {
+  id          String @id @default(uuid())
+  name        String
+  prompt      String
+
+  workspaceId String
+  workspace   Workspace @relation(fields:[workspaceId], references:[id])
+
+  createdAt   DateTime @default(now())
+}
+
+model Contact {
+  id          String @id @default(uuid())
+  phone       String
+  name        String?
+
+  workspaceId String
+  workspace   Workspace @relation(fields:[workspaceId], references:[id])
+
+  messages    Message[]
+}
+
+model Message {
+  id          String @id @default(uuid())
+
+  content     String
+  direction   String
+
+  contactId   String
+  contact     Contact @relation(fields:[contactId], references:[id])
+
+  createdAt   DateTime @default(now())
+}
