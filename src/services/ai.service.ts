@@ -4,10 +4,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-export async function generateReply(
-  systemPrompt: string,
-  userMessage: string
-) {
+export async function generateReply(systemPrompt: string, userMessage: string) {
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [

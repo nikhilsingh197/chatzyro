@@ -10,8 +10,6 @@ import conversationRoutes from "./routes/conversation.routes";
 import messageRoutes from "./routes/message.routes";
 import chatRoutes from "./routes/chat.routes";
 
-
-
 const app = express();
 app.use(cors());
 app.use(express.json());

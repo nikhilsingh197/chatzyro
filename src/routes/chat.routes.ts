@@ -24,7 +24,7 @@ router.post("/reply", async (req, res) => {
       });
     }
 
- const conversation = await prisma.conversation.findUnique({
+ const conversations= await prisma.conversation.findUnique({
   where: { id: conversationId },
   include: { agent: true },
 });
