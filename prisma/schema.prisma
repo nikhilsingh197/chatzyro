@@ -21,9 +21,10 @@ model Workspace {
   name      String
   createdAt DateTime @default(now())
 
-  members  WorkspaceMember[]
-  agents   Agent[]
-  contacts Contact[]
+  members   WorkspaceMember[]
+  agents    Agent[]
+  contacts  Contact[]
+  campaigns Campaign[]
 }
 
 model WorkspaceMember {
@@ -53,12 +54,13 @@ model Agent {
 }
 
 model Contact {
-  id            String         @id @default(uuid())
-  phone         String
-  name          String?
-  workspaceId   String
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
-  conversations Conversation[]
+  id               String            @id @default(uuid())
+  phone            String
+  name             String?
+  workspaceId      String
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id])
+  conversations    Conversation[]
+  campaignContacts CampaignContact[]
 }
 
 model Conversation {
@@ -79,4 +81,31 @@ model Message {
   content        String
   direction      String
   createdAt      DateTime     @default(now())
+}
+
+model Campaign {
+  id String @id @default(uuid())
+
+  name    String
+  message String
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  createdAt        DateTime          @default(now())
+  campaignContacts CampaignContact[]
+}
+
+model CampaignContact {
+  id String @id @default(uuid())
+
+  campaignId String
+  contactId  String
+
+  status String @default("pending")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  contact  Contact  @relation(fields: [contactId], references: [id])
+
+  createdAt DateTime @default(now())
 }

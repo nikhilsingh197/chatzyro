@@ -27,11 +27,11 @@ router.post("/", async (req, res) => {
   }
 });
 router.get("/", async (req, res) => {
-  const contacts = await prisma.contact.findMany();
+  const workspaces = await prisma.workspace.findMany();
 
   res.json({
     success: true,
-    contacts,
+    workspaces,
   });
 });
 

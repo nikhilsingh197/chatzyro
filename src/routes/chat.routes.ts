@@ -8,33 +8,28 @@ router.post("/reply", async (req, res) => {
   try {
     const { conversationId, message } = req.body;
 
-    const conversation =
-      await prisma.conversation.findUnique({
-        where: {
-          id: conversationId,
-        },
-        include: {
-          agent: true,
-        },
-      });
+    const conversation = await prisma.conversation.findUnique({
+      where: {
+        id: conversationId,
+      },
+      include: {
+        agent: true,
+      },
+    });
 
-    if (!conversation) {
-      return res.status(404).json({
-        success: false,
-      });
-    }
+    const aiReply = await generateReply(
+      conversation?.agent?.prompt ||
+        "You are a professional sales representative for ABC Company. Your goal is to convert WhatsApp inquiries into paying customers.",
+      message,
+    );
 
- const conversations= await prisma.conversation.findUnique({
-  where: { id: conversationId },
-  include: { agent: true },
-});
-
-if (!conversation || !conversation.agent) {
-  return res.status(404).json({
-    success: false,
-    error: "Conversation or agent not found",
-  });
-}
+    await prisma.message.create({
+      data: {
+        conversationId,
+        content: message,
+        direction: "incoming",
+      },
+    });
 
     await prisma.message.create({
       data: {

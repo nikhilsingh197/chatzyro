@@ -9,6 +9,9 @@ import contactRoutes from "./routes/contact.routes";
 import conversationRoutes from "./routes/conversation.routes";
 import messageRoutes from "./routes/message.routes";
 import chatRoutes from "./routes/chat.routes";
+import dashboardRoutes from "./routes/dashboard.routes";
+import campaignRoutes from "./routes/campaign.routes";
+import whatsappRoutes from "./routes/whatsapp.routes";
 
 const app = express();
 app.use(cors());
@@ -21,6 +24,9 @@ app.use("/api/agents", agentRoutes);
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/campaigns", campaignRoutes);
+app.use("/api/whatsapp", whatsappRoutes);
 app.get("/profile", authMiddleware, (req: AuthRequest, res) => {
   res.json({
     success: true,

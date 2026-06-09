@@ -1,16 +1,16 @@
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function generateReply(systemPrompt: string, userMessage: string) {
+export async function generateReply(prompt: string, userMessage: string) {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4.1-mini",
     messages: [
       {
         role: "system",
-        content: systemPrompt,
+        content: prompt,
       },
       {
         role: "user",
@@ -19,5 +19,5 @@ export async function generateReply(systemPrompt: string, userMessage: string) {
     ],
   });
 
-  return response.choices[0].message.content || "Sorry, no response.";
+  return response.choices[0].message.content || "";
 }
