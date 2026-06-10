@@ -188,20 +188,64 @@ router.post("/:id/send", async (req, res) => {
       },
     });
 
-    for (const contact of campaignContacts) {
-      let conversation = await prisma.conversation.findFirst({
-        where: {
-          contactId: contact.contactId,
+    for (const item of campaignContacts) {
+  const contact = await prisma.contact.findUnique({
+    where: {
+      id: item.contactId,
+    },
+  });
+
+  if (!contact) continue;
+
+  try {
+    await sendWhatsAppMessage(
+      contact.phone,
+      campaign.message
+    );
+
+    let conversation = await prisma.conversation.findFirst({
+      where: {
+        contactId: contact.id,
+      },
+    });
+
+    if (!conversation) {
+      conversation = await prisma.conversation.create({
+        data: {
+          contactId: contact.id,
         },
       });
+    }
 
-      if (!conversation) {
-        conversation = await prisma.conversation.create({
-          data: {
-            contactId: contact.contactId,
-          },
-        });
-      }
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        content: campaign.message,
+        direction: "outgoing",
+      },
+    });
+
+    await prisma.campaignContact.update({
+      where: {
+        id: item.id,
+      },
+      data: {
+        status: "sent",
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    await prisma.campaignContact.update({
+      where: {
+        id: item.id,
+      },
+      data: {
+        status: "failed",
+      },
+    });
+  }
+
 
       await prisma.message.create({
         data: {

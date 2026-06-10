@@ -99,12 +99,21 @@ router.post("/webhook", async (req, res) => {
     }
 
     // Find Contact
-    let contact =
-      await prisma.contact.findFirst({
-        where: {
-          phone,
-        },
-      });
+    let contact = await prisma.contact.findFirst({
+  where: {
+    phone,
+  },
+});
+
+if (!contact) {
+  contact = await prisma.contact.create({
+    data: {
+      phone,
+      name: profileName,
+      workspaceId: workspace.id,
+    },
+  });
+}
 
     // Create Contact
     if (!contact) {

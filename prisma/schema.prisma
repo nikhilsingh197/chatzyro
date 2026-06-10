@@ -54,11 +54,13 @@ model Agent {
 }
 
 model Contact {
-  id               String            @id @default(uuid())
-  phone            String
-  name             String?
-  workspaceId      String
-  workspace        Workspace         @relation(fields: [workspaceId], references: [id])
+  id          String @id @default(uuid())
+  phone       String @unique
+  name        String?
+  workspaceId String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
   conversations    Conversation[]
   campaignContacts CampaignContact[]
 }
