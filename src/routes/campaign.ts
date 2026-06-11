@@ -1,8 +1,10 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
+import { sendWhatsAppMessage } from "../services/whatsapp.service";
 
 const router = Router();
 
+// Create Campaign
 router.post("/", async (req, res) => {
   try {
     const { name, message, workspaceId } = req.body;
@@ -26,6 +28,8 @@ router.post("/", async (req, res) => {
     });
   }
 });
+
+// Get All Campaigns
 router.get("/", async (req, res) => {
   try {
     const campaigns = await prisma.campaign.findMany({
@@ -45,6 +49,8 @@ router.get("/", async (req, res) => {
     });
   }
 });
+
+// Get Single Campaign
 router.get("/:id", async (req, res) => {
   try {
     const campaign = await prisma.campaign.findUnique({
@@ -64,6 +70,8 @@ router.get("/:id", async (req, res) => {
     });
   }
 });
+
+// Delete Campaign
 router.delete("/:id", async (req, res) => {
   try {
     await prisma.campaign.delete({
@@ -83,6 +91,8 @@ router.delete("/:id", async (req, res) => {
     });
   }
 });
+
+// Add One Contact To Campaign
 router.post("/:id/contacts", async (req, res) => {
   try {
     const { contactId } = req.body;
@@ -105,6 +115,8 @@ router.post("/:id/contacts", async (req, res) => {
     });
   }
 });
+
+// Get Campaign Contacts
 router.get("/:id/contacts", async (req, res) => {
   try {
     const contacts = await prisma.campaignContact.findMany({
@@ -127,6 +139,8 @@ router.get("/:id/contacts", async (req, res) => {
     });
   }
 });
+
+// Campaign Stats
 router.get("/:id/stats", async (req, res) => {
   try {
     const campaignId = req.params.id;
@@ -167,6 +181,8 @@ router.get("/:id/stats", async (req, res) => {
     });
   }
 });
+
+// Send Campaign
 router.post("/:id/send", async (req, res) => {
   try {
     const campaign = await prisma.campaign.findUnique({
@@ -189,80 +205,62 @@ router.post("/:id/send", async (req, res) => {
     });
 
     for (const item of campaignContacts) {
-  const contact = await prisma.contact.findUnique({
-    where: {
-      id: item.contactId,
-    },
-  });
-
-  if (!contact) continue;
-
-  try {
-    await sendWhatsAppMessage(
-      contact.phone,
-      campaign.message
-    );
-
-    let conversation = await prisma.conversation.findFirst({
-      where: {
-        contactId: contact.id,
-      },
-    });
-
-    if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: {
-          contactId: contact.id,
-        },
-      });
-    }
-
-    await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        content: campaign.message,
-        direction: "outgoing",
-      },
-    });
-
-    await prisma.campaignContact.update({
-      where: {
-        id: item.id,
-      },
-      data: {
-        status: "sent",
-      },
-    });
-  } catch (error) {
-    console.error(error);
-
-    await prisma.campaignContact.update({
-      where: {
-        id: item.id,
-      },
-      data: {
-        status: "failed",
-      },
-    });
-  }
-
-
-      await prisma.message.create({
-        data: {
-          conversationId: conversation.id,
-          content: campaign.message,
-          direction: "outgoing",
-        },
-      });
-
-      await prisma.campaignContact.update({
+      const contact = await prisma.contact.findUnique({
         where: {
-          id: contact.id,
-        },
-        data: {
-          status: "sent",
+          id: item.contactId,
         },
       });
+
+      if (!contact) continue;
+
+      try {
+        await sendWhatsAppMessage(
+          contact.phone,
+          campaign.message.replace("{{name}}", contact.name || "Customer"),
+        );
+
+        let conversation = await prisma.conversation.findFirst({
+          where: {
+            contactId: contact.id,
+          },
+        });
+
+        if (!conversation) {
+          conversation = await prisma.conversation.create({
+            data: {
+              contactId: contact.id,
+            },
+          });
+        }
+
+        await prisma.message.create({
+          data: {
+            conversationId: conversation.id,
+            content: campaign.message,
+            direction: "outgoing",
+          },
+        });
+
+        await prisma.campaignContact.update({
+          where: {
+            id: item.id,
+          },
+          data: {
+            status: "sent",
+          },
+        });
+      } catch (error) {
+        console.error(error);
+
+        await prisma.campaignContact.update({
+          where: {
+            id: item.id,
+          },
+          data: {
+            status: "failed",
+          },
+        });
+      }
     }
 
     res.json({
@@ -277,4 +275,50 @@ router.post("/:id/send", async (req, res) => {
   }
 });
 
+// Add All Contacts To Campaign
+router.post("/:id/add-all-contacts", async (req, res) => {
+  try {
+    const contacts = await prisma.contact.findMany();
+
+    let added = 0;
+
+    for (const contact of contacts) {
+      const exists = await prisma.campaignContact.findFirst({
+        where: {
+          campaignId: req.params.id,
+          contactId: contact.id,
+        },
+      });
+
+      if (!exists) {
+        await prisma.campaignContact.create({
+          data: {
+            campaignId: req.params.id,
+            contactId: contact.id,
+          },
+        });
+
+        added++;
+      }
+    }
+
+    res.json({
+      success: true,
+      added,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: String(error),
+    });
+  }
+});
+router.get("/campaigns/count", async (req, res) => {
+  const count = await prisma.campaign.count();
+
+  res.json({
+    success: true,
+    count,
+  });
+});
 export default router;

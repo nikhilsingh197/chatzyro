@@ -12,70 +12,100 @@ const upload = multer({
 
 const workspaceId = "387d644a-2b20-422f-86e1-6e1942cd8d88";
 
-// Create Contact
+/* -----------------------------
+   CREATE CONTACT
+------------------------------*/
 router.post("/", async (req, res) => {
   try {
     const { name, phone } = req.body;
 
+    if (!name || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "name and phone are required",
+      });
+    }
+
     const existing = await prisma.contact.findFirst({
       where: {
-        phone: row.phone,
+        phone,
         workspaceId,
       },
     });
 
-    if (!existing) {
-      await prisma.contact.create({
-        data: {
-          name: row.name,
-          phone: row.phone,
-          workspaceId,
-        },
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "Contact already exists",
       });
     }
 
-    res.status(201).json({
+    const contact = await prisma.contact.create({
+      data: {
+        name: name.trim(),
+        phone,
+        workspaceId,
+      },
+    });
+
+    return res.status(201).json({
       success: true,
       contact,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: String(error),
     });
   }
 });
 
-// Get All Contacts
+/* -----------------------------
+   GET ALL CONTACTS
+------------------------------*/
 router.get("/", async (req, res) => {
   try {
     const contacts = await prisma.contact.findMany({
+      where: {
+        workspaceId,
+      },
       orderBy: {
         id: "desc",
       },
     });
 
-    res.json({
+    return res.json({
       success: true,
       contacts,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: String(error),
     });
   }
 });
 
-// Import CSV
+/* -----------------------------
+   IMPORT CSV
+------------------------------*/
 router.post("/import", upload.single("file"), async (req, res) => {
   try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "File is required",
+      });
+    }
+
     const contacts: any[] = [];
 
-    fs.createReadStream(req.file!.path)
+    fs.createReadStream(req.file.path)
       .pipe(csv())
       .on("data", (row) => {
-        contacts.push(row);
+        if (row.name && row.phone) {
+          contacts.push(row);
+        }
       })
       .on("end", async () => {
         let imported = 0;
@@ -83,7 +113,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
         for (const row of contacts) {
           let phone = String(row.phone).replace(/\D/g, "");
 
-          // Convert 10 digit Indian numbers to 91xxxxxxxxxx
+          // Convert 10-digit Indian numbers to 91xxxxxxxxxx
           if (phone.length === 10) {
             phone = "91" + phone;
           }
@@ -93,10 +123,10 @@ router.post("/import", upload.single("file"), async (req, res) => {
               phone,
             },
             update: {
-              name: row.name?.trim(),
+              name: row.name.trim(),
             },
             create: {
-              name: row.name?.trim(),
+              name: row.name.trim(),
               phone,
               workspaceId,
             },
@@ -105,23 +135,24 @@ router.post("/import", upload.single("file"), async (req, res) => {
           imported++;
         }
 
-        // Delete uploaded temp file
         fs.unlinkSync(req.file!.path);
 
-        res.json({
+        return res.json({
           success: true,
           imported,
         });
       });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: String(error),
     });
   }
 });
 
-// Get Single Contact
+/* -----------------------------
+   GET SINGLE CONTACT
+------------------------------*/
 router.get("/:id", async (req, res) => {
   try {
     const contact = await prisma.contact.findUnique({
@@ -130,37 +161,99 @@ router.get("/:id", async (req, res) => {
       },
     });
 
-    res.json({
+    return res.json({
       success: true,
       contact,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: String(error),
     });
   }
 });
 
-// Delete Contact
+/* -----------------------------
+   DELETE CONTACT
+------------------------------*/
 router.delete("/:id", async (req, res) => {
   try {
-    await prisma.contact.delete({
+    const conversations = await prisma.conversation.findMany({
+      where: { contactid },
+    });
+
+    for (const conv of conversations) {
+      await prisma.message.deleteMany({
+        where: {
+          conversationId: conv.id,
+        },
+      });
+    }
+
+    await prisma.conversation.deleteMany({
       where: {
-        id: req.params.id,
+        contactid,
       },
     });
 
     res.json({
       success: true,
-      message: "Contact deleted",
     });
   } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       success: false,
       error: String(error),
     });
   }
 });
+router.get("/contacts/count", async (req, res) => {
+  const count = await prisma.contact.count();
 
+  res.json({
+    success: true,
+    count,
+  });
+});
+
+router.post("/:id/add-all-contacts", async (req, res) => {
+  try {
+    const contacts = await prisma.contact.findMany();
+
+    let added = 0;
+
+    for (const contact of contacts) {
+      const exists = await prisma.campaignContact.findFirst({
+        where: {
+          campaignId: req.params.id,
+          contactId: contact.id,
+        },
+      });
+
+      if (!exists) {
+        await prisma.campaignContact.create({
+          data: {
+            campaignId: req.params.id,
+            contactId: contact.id,
+          },
+        });
+
+        added++;
+      }
+    }
+
+    res.json({
+      success: true,
+      added,
+    });
+  } catch (error) {
+    console.error("ADD CONTACTS ERROR:", error);
+
+    res.status(500).json({
+      success: false,
+      error: String(error),
+    });
+  }
+});
 export default router;
